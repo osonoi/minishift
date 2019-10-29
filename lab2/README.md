@@ -1,4 +1,4 @@
-# Lab4: 様々なデプロイメント手法
+# Lab2: 様々なデプロイメント手法
 
 - Blue Green Deployment
 - Canary Deployment
