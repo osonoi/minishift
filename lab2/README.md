@@ -1,208 +1,231 @@
-# Lab5: CodeReady Workspaceを利用した開発体験
+# Lab4: 様々なデプロイメント手法
 
-- CodeReady Workspaceのインストール
-- サンプルアプリケーションの開発とOpenshiftへのデプロイ
+- Blue Green Deployment
+- Canary Deployment
+- Rolling Deployment
 
-# CodeReady Workspaceのインストール
-OpenShift上にCodeReadyをインストールします。すでにCodeReady Workspaceがインストール済みで、workspaceも用意済みであれば当セクションは飛ばして構いません。次セクションの「サンプルアプリケーションの開発とOpenshiftへのデプロイ」の 2 まで進んでください。
+# Blue Green Deployment
+Blue Green Deploymentとは、異なるバージョンのアプリケーションを二つ作り、Load Balancer(OCPの場合はRouterが内部LBとして機能します) の向き先を変更することでアプリケーションのバージョンを切り替える手法です。Blueが現行バージョン、Greenが新バージョンです。
 
-1. プロジェクトを選択します
+1. プロジェクトを選択します。
 
-   プロジェクトは，**必ずご自身のログイン時のユーザー名 (例: "dev01")** のものを選択してください。
-   Home > Project > dev01　 (例)
+    ```
+    $ oc login https://api.cluster-tokyo-ef76.tokyo-ef76.openshiftworkshop.com:6443
+    $ oc project ユーザー名 (ex. oc project dev01)
+    ```
 
-   ![](images/create_application_using_existedImage_1.png)
+2. アプリケーション (Blue) を作成します。
 
-2. Catalog > OperatorHub と進み、検索窓に「CodeReady」と入力してください。CodeReadyのitemが表示されたら選択してください。
+    ```
+    $ oc run blue --image=openshift/hello-openshift --replicas=2 --limits='cpu=500m,memory=128Mi'
+    ```
 
-    ![](images/install_1.png)
+3. 作成したアプリケーションのレスポンスを設定します。(このサンプルアプリケーションは環境変数によってレスポンスメッセージが設定可能になっています)
 
-3. installします。
+    ```
+    $ oc set env dc/blue RESPONSE="Hello from Blue"
+    ```
 
-    ![](images/install_2.png)
+4. サービスを作成します。
 
-4. 御自身のprojectがインストール先に選択されていることを確認して、Subscribeを選択してください。
+    ```
+    $ oc expose dc/blue --port=8080
+    ```
 
-    ![](images/install_3.png)
+5. サービスを外部公開します。
 
-5. Operatorがinstallされました。これを元にproject にCodeReadyのアプリケーションを作成します。Catalog > Installed Operators と進み、「Red Hat CodeReady Workspaces」を選択します。表示されない場合は、まだOperatorのインストールが終わっていない状態ですのでしばらくたってから再度確認してみてください。
+    ```
+    $ oc expose svc/blue --name=bluegreen
+    ```
 
-    ![](images/install_4.png)
+6. 別バージョンのアプリケーション (Green) を作成します。
 
-6. Create Newを選択します。
+    ```
+    $ oc run green --image=openshift/hello-openshift --replicas=2 --limits='cpu=500m,memory=128Mi'
+    $ oc set env dc/green RESPONSE="Hello from Green"
+    $ oc expose dc/green --port=8080
+    ```
 
-    ![](images/install_5.png)
+7. トラフィックをBlueに設定します。
 
-7. そのままCreateします。
+    ```
+    $ oc set route-backends bluegreen blue=100 green=0
+    ```
 
-    ![](images/install_6.png)
+8. 別のターミナルを開き、今どちらのアプリケーションに向いているのか確認します。
 
-8. Createが開始されました。時間がかかるのでしばらくお待ちください。
+    ```
+    $ oc get route bluegreen
+    $ while true; do curl http://<oc get routeで取得したエンドポイント>; sleep .5; done
+    
+    Hello from Blue
+    Hello from Blue
+    Hello from Blue
+    Hello from Blue
+    Hello from Blue
+    Hello from Blue
+    
+    ...
+    ```
 
-    ![](images/install_7.png)
+9. 今度はトラフィックをGreenに向けます。
 
-9. Home > Status と進み、下記のように必要なResouceが作成されたら完了です。
+    ```
+    $ oc set route-backends bluegreen blue=0 green=100
+    ```
 
-    ![](images/install_8.png)
+10. 再びアクセスすると、別のバージョンに切り替わっていることが確認できます。
 
-10. Networking > Routes と進み、Routeが二つあることを確認します。codereadyのLocationに表示されているURLを選択してください。
+    ```
+    $ oc get route bluegreen
+    $ while true; do curl http://oc get routeで取得したエンドポイント; sleep .5; done
+    
+    Hello from Green
+    Hello from Green
+    Hello from Green
+    Hello from Green
+    Hello from Green
+    Hello from Green
+    ...
+    ```
 
-    ![](images/install_9.png)
+# Canary Deployment
 
-11. ログイン画面が表示されますので、Registerを選択してアカウントを作成します。
+Canary Deploymentは異なるバージョンのアプリケーションを二つ作り、トラフィックを少しずつ新しいバージョンへ流して、問題が無ければそのまま全て切り替える手法です。
 
-     ![](images/install_10.png)
+1. プロジェクトを選択します。
 
-12. 任意で入力してRegisterを選択してください。
+   ```
+    $ oc login https://api.cluster-tokyo-ef76.tokyo-ef76.openshiftworkshop.com:6443
+   $ oc project ユーザー名 (ex. oc project dev01)
+   ```
 
-    ![](images/install_11.png)
+2. アプリケーションを作成します。
 
-13. 下記のような画面が表示されたらCodeReadyの準備は完了です。
+   ```
+   $ oc run prod --image=openshift/hello-openshift --replicas=2 --limits='cpu=500m,memory=128Mi'
+   $ oc set env dc/prod RESPONSE="Hello from Prod"
+   $ oc expose dc/prod --port=8080
+   ```
 
-    ![](images/install_12.png)
+3. サービスを作成します。
 
-# サンプルアプリケーションの開発とOpenshiftへのデプロイ
+   ```
+   $ oc expose svc/prod
+   ```
 
-ここからインストールしたCodeReady上で[Quarkus](https://quarkus.io/)アプリケーションを作成、デプロイしていきます。作業していてworkspaceが重いと感じる場合は、このセクションの一番下にあるtipsを元にworkspaceに割り当てるメモリを増やしてみてください。
+4. 次に別バージョンのアプリケーションを作成します。
 
-1. Dashboard を選択し、下記画面を開いたらJava1.8を選択して 「CREATE & OPEN」を選択してください。WorkSpaceの作成が始まります。時間がかかるのでしばらくお待ちください。
+   ```
+   $ oc run canary --image=openshift/hello-openshift --limits='cpu=500m,memory=128Mi'
+   $ oc set env dc/canary RESPONSE="Hello from Canary"
+   $ oc expose dc/canary --port=8080
+   $ oc set route-backends prod prod=100 canary=0
+   ```
 
-   ![](images/app_1.png)
+5. 別のターミナルを開き、トラフィックが片方に寄っていることを確認します。
+
+   ```
+   $ oc get route prod
+   $ while true; do curl http://<oc get routeで取得したエンドポイント>; sleep .5; done
    
-2. 下記画面が開いたら Import Projectを選択してください。
-
-   ![](images/app_2.png)
-
-3. 「GITHUB」を選択し、下記URLを入力したらImportしてください。
-
-   ```
-   https://github.com/16yuki0702/sample-quarkus-0.20.0.git
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   ...
    ```
 
-   ![](images/app_3.png)
-
-4. Project Configurationには JAVA > Mavenを選択して Saveします。
-
-   ![](images/app_4.png)
-
-5. project を右クリックし、Open in Terminalを選択してください。
-
-   ![](images/app_5.png)
-
-6. 右下にTerminalが開かれます。試しにコマンド「pwd」と打ってカレントディレクトリが 「/projects/sample-quarkus-0.20.0」であることを確認してください。以降このディレクトリ内で作業を行うので、異なるディレクトリにいた場合は上記ディレクトリに移動してください。Terminalのタブをダブルクリックすると画面が大きくなります。
-
-   ![](images/app_6.png)
-
-7. CodeReady上からOpenshift にログインします。下記コマンドを打ち、それぞれに割り当てられたユーザー名とパスワードを入力してください。
+6. トラフィックの配分を変更します。
 
    ```
-   oc login https://openshiftクラスタ
+   $ oc set route-backends prod prod=90 canary=10
    ```
 
-8. ログインしたら下記コマンドで自分専用のproject を作成してください。他とproject名が重複するとエラーになりますので、打ち間違いがないか確認してください。
+7. もう一度リクエストを送り、今度はトラフィックが分配されていることを確認します。
 
    ```
-   oc new-project ユーザー名-app
-   ```
-
-   ex. oc new-project dev11-app
-
-9. プロジェクトを作成したら下記を入力し、正しいprojectにいるか確認してください。
-
-   ```
-   oc project
-   ```
-
-10. デプロイの準備を行っていきます。下記を入力し、build設定を作成します。
-
-   ```
-   APP_NAME=quarkus-app
-   oc new-build --strategy=docker --binary=true --name=$APP_NAME
-   ```
-
-   下記のようにsuccessと出れば成功です。
-
-   ![](images/app_7.png)
-
-11. 下記コマンドを実行してビルドを開始します。このコマンドでは作成したビルド設定に対し自分の作業ディレクトリを指定しています。このようにすると作業中のディレクトリをopenshfitに転送してビルドすることができます。—followオプションを付けているのでbuild実行中のログが流れます。ビルドには時間がかかりますのでしばらくお待ちください。
-
-    ```
-    oc start-build $APP_NAME --from-dir=/projects/sample-quarkus-0.20.0 --follow
-    ```
-
-    下記のように「push successful」と出れば成功です。
-
-    ![](images/app_8.png)
-
-12. ビルドしたイメージを元にアプリケーションを作成します。
-
-    ```
-    oc new-app $APP_NAME
-    ```
-
-    下記のように表示されれば作成成功です。
-
-    ![](images/app_9.png)
-
-13. サービス公開設定をします。
-
-    ```
-    oc expose service $APP_NAME
-    ```
-
-14. エンドポイントの確認をします。
-
-    ```
-    oc get route
-    ```
-
-    Locationの箇所にあるURLがサービスエンドポイントになります。URLにアクセスしてみてください。
-
-    ![](images/app_10.png)
-
-15. アクセスして下記のような画面が表示されればデプロイ成功です。
-
-    ![](images/app_11.png)
-
-
-
-### 応用問題
-
-1. src/main/java/org/acme/quickstart/GreetingResource.java の中身を確認してみてください。helloと文字列を返しているクラスのはずです。デフォルトページではなく、GreetingResource.javaの画面を表示してみてください
-
-2. src/main/java/org/acme/quickstart/ChallengeResource.java ファイルを下記のように作成し、再度デプロイしてみてください。追加されたChallengeResource.javaの画面が表示できるか確認してみてください。
-
-   ```
-   package org.acme.quickstart;
+   $ oc get route prod
+   $ while true; do curl http://oc get routeで取得したエンドポイント; sleep .5; done
    
-   import javax.ws.rs.GET;
-   import javax.ws.rs.Path;
-   import javax.ws.rs.PathParam;
-   import javax.ws.rs.Produces;
-   import javax.ws.rs.core.MediaType;
-   
-   @Path("/challenge")
-   public class ChallengeResource {
-       @GET
-       @Produces(MediaType.TEXT_PLAIN)
-       @Path("{param}")
-       public String challenge(@PathParam("param") String param) {
-           return String.format("Hello %s!", param);
-       }
-   }
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   Hello from Prod
+   Hello from Canary
+   Hello from Prod
+   Hello from Prod
+   ...
    ```
 
-### tips
+# Rolling Update
 
-CodeReadyを操作していて重いと感じる場合は、割り当てるメモリが少ない可能性があります。下記手順でWorkspaceに割り当てるメモリを増設できます。
+Rolling Updateは新しいバージョンのアプリケーションのPodを少しずつ増やし、古いバージョンのアプリケーションのPodを少しずつ減らして入れ替えていく手法です。
 
-1. Workspaceを開き、対象のWorkspaceが停止になっていることを確認してください。その後、行右側の歯車のマークを選択してください。
+1. プロジェクトを選択します。
 
-   ![](images/tips_1.png)
+   ```
+   $ oc login 接続先クラスタ
+   $ oc project ユーザー名 (ex. oc project dev11)
+   ```
 
-2. Environments > default > machines > dev-machine > attributes > memoryLimitBytes を見ると 「2147483648」となっています。「4294967296」とすると2GBから4GBに変更になります。変更すると自動的にsaveが始まります。右上にsucceccfulと出たら完了です。そのまま Runすると4GBでWorkspaceが開始されます。
+2. アプリケーションを作成します。
 
-   ![](images/tips_2.png)
+   ```
+   $ oc run rolling --image=openshift/hello-openshift --replicas=2 --limits='cpu=500m,memory=128Mi'
+   $ oc expose dc/rolling --port 8080
+   $ oc expose svc/rolling
+   ```
 
+3. アプリケーションから返されるレスポンスを設定します。
 
+   ```
+   $ oc set env dc/rolling RESPONSE="Hello from new roll"
+   ```
 
+4. Workloads > Deployment Configs > rolling > Podsを確認します。
+
+   ![](images/rolling1.png)
+
+5. 別のターミナルを開き、レスポンスを確認します。
+
+   ```
+   $ oc get route rolling
+   $ while true; do curl http://<oc get routeで取得したエンドポイント>; sleep .5; done
+   
+   Hello from new roll
+   Hello from new roll
+   Hello from new roll
+   ...
+   ```
+
+6. レスポンスを変更します。
+
+   ```
+   $ oc set env dc/rolling RESPONSE="Hello from second roll"
+   ```
+
+7. 再度レスポンスを確認し、変更されていることを確認します。
+
+   ```
+   $ oc get route rolling
+   $ while true; do curl http://oc get routeで取得したエンドポイント; sleep .5; done
+   
+   Hello from second roll
+   Hello from second roll
+   Hello from second roll
+   ...
+   ```
+
+8. Workloads > Deployment Configs > rolling > Podsを再度確認し、Pod名が変わっていることを確認します。
+
+   ![](images/rolling2.png)
+
+   
