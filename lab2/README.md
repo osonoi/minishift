@@ -80,6 +80,8 @@ Blue Green Deploymentとは、異なるバージョンのアプリケーショ�
     $ oc get route bluegreen
     $ while true; do curl http://oc get routeで取得したエンドポイント; sleep .5; done
     
+    (Windowsの場合　for ($i=0; $i -lt 10; $i++){((curl http://oc get routeで取得したエンドポイント).Content)}      )
+    
     Hello from Green
     Hello from Green
     Hello from Green
@@ -149,6 +151,8 @@ Canary Deploymentは異なるバージョンのアプリケーションを二つ
    $ oc get route prod
    $ while true; do curl http://oc get routeで取得したエンドポイント; sleep .5; done
    
+    (Windowsの場合　for ($i=0; $i -lt 10; $i++){((curl http://oc get routeで取得したエンドポイント).Content)}      )
+   
    Hello from Prod
    Hello from Prod
    Hello from Prod
@@ -199,7 +203,9 @@ Rolling Updateは新しいバージョンのアプリケーションのPodを少
    ```
    $ oc get route rolling
    $ while true; do curl http://<oc get routeで取得したエンドポイント>; sleep .5; done
-   
+
+      (Windowsの場合　for ($i=0; $i -lt 10; $i++){((curl http://oc get routeで取得したエンドポイント).Content)}      )
+
    Hello from new roll
    Hello from new roll
    Hello from new roll
@@ -217,6 +223,8 @@ Rolling Updateは新しいバージョンのアプリケーションのPodを少
    ```
    $ oc get route rolling
    $ while true; do curl http://oc get routeで取得したエンドポイント; sleep .5; done
+   
+    (Windowsの場合　for ($i=0; $i -lt 10; $i++){((curl http://oc get routeで取得したエンドポイント).Content)}      )
    
    Hello from second roll
    Hello from second roll
