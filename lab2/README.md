@@ -10,8 +10,8 @@ Blue Green Deploymentとは、異なるバージョンのアプリケーショ�
 1. プロジェクトを選択します。
 
     ```
-    $ oc login https://api.cluster-tokyo-ef76.tokyo-ef76.openshiftworkshop.com:6443
-    $ oc project ユーザー名 (ex. oc project dev01)
+    $ oc login <ユーザー名>
+    $ oc project <プロジェクト名>
     ```
 
 2. アプリケーション (Blue) を作成します。
