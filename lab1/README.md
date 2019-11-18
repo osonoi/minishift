@@ -37,6 +37,7 @@ Hostnameの下をクリックするとアプリ画面が起動します。
 
 アプリ    画面です。
 
+![OpenShift9](https://github.com/osonoi/minishift/blob/master/image/9.jpg "9")
 
-下の画面が出る場合はまだできていないか問題があるかもしれません。
+
 
