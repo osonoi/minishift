@@ -6,7 +6,7 @@
 
 # MongoDBを構築
 Node.jsアプリケーションを作成し、MongoDBと接続する上で必要な情報を設定し連携させます。まずはMongoDBから構築していきます。
-https://github.com/osonoi/minishift/blob/master/image/1.jpg
+![OpenShift1](https://github.com/osonoi/minishift/blob/master/image/1.jpg "1")
 
 1. 任意のプロジェクトを選択します
 
