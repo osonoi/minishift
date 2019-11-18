@@ -1,11 +1,10 @@
-# 複数コンテナの連携
+# Web UIからのコンテナの連携
 
-- テンプレートからMongoDBを構築
-- テンプレートからNode.jsアプリケーションを作成
-- Node.jsアプリケーションのsecretを設定し、MongoDBと繋げる
+- Web UIを起動ログイン
+- Node.js+mongodbアプリケーションを作成
+- ブラウザで確認
 
-# MongoDBを構築
-Node.jsアプリケーションを作成し、MongoDBと接続する上で必要な情報を設定し連携させます。まずはMongoDBから構築していきます。
+ウェブUIを起動、ログインしてください。
 ![OpenShift1](https://github.com/osonoi/minishift/blob/master/image/1.jpg "1")
 
 1. 任意のプロジェクトを選択します
