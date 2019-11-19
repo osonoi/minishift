@@ -1,5 +1,6 @@
 # Web UIからのコンテナの連携
 
+- minishiftを起動
 - Web UIを起動ログイン
 - Node.js+mongodbアプリケーションを作成
 - ブラウザで確認
